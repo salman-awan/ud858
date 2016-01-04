@@ -60,6 +60,7 @@ class Conference(ndb.Model):
     endDate         = ndb.DateProperty()
     maxAttendees    = ndb.IntegerProperty()
     seatsAvailable  = ndb.IntegerProperty()
+    sessionKeys     = ndb.StringProperty(repeated=True)
 
 class ConferenceForm(messages.Message):
     """ConferenceForm -- Conference outbound form message"""
@@ -108,3 +109,31 @@ class ConferenceQueryForms(messages.Message):
     """ConferenceQueryForms -- multiple ConferenceQueryForm inbound form message"""
     filters = messages.MessageField(ConferenceQueryForm, 1, repeated=True)
 
+class Session(ndb.Model):
+    """Session -- Session object"""
+    name            = ndb.StringProperty(required=True)
+    speakers        = ndb.StringProperty(repeated=True) # TODO: make this separate entities?
+    date            = ndb.DateProperty()
+    startTime       = ndb.DateTimeProperty()
+    duration        = ndb.IntegerProperty() # duration in minutes
+    type            = ndb.StringProperty()
+    location        = ndb.StringProperty()
+
+class SessionForm(messages.Message):
+    """SessionForm -- Session outbound form message"""
+    name            = messages.StringField(1)
+    speakers        = messages.StringField(2, repeated=True)
+    startTime       = messages.StringField(3)  #DateTimeField()
+    duration        = messages.IntegerField(4)
+    type            = messages.EnumField('SessionType', 5)
+    location        = messages.StringField(6)
+
+class SessionForms(messages.Message):
+    """SessionForms -- multiple Session outbound form message"""
+    items = messages.MessageField(SessionForm, 1, repeated=True)
+
+class SessionType(messages.Enum):
+    """SessionType -- type of session"""
+    WORKSHOP = 1
+    LECTURE = 2
+    FORUM = 3
