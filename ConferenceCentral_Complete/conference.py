@@ -14,6 +14,7 @@ __author__ = 'wesc+api@google.com (Wesley Chun)'
 
 
 from datetime import datetime
+from datetime import time
 
 import endpoints
 from protorpc import messages
@@ -63,7 +64,7 @@ CONF_DEFAULTS = {
 }
 
 SESSION_DEFAULTS = {
-'type': str(SessionType.WORKSHOP), 'speakers': [''], 'location': '', 'duration': 0, 'startTime': None
+'type': str(SessionType.WORKSHOP), 'speaker': 'John Doe', 'duration': 0, 'startTime': '00:00:00'
 }
 
 OPERATORS = {
@@ -111,6 +112,16 @@ SESSION_SPEAKER_GET_REQUEST = endpoints.ResourceContainer(
 WISHLIST_POST_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
     websafeSessionKey=messages.StringField(1),
+)
+
+WISHLIST_SESSION_SPEAKER_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    speaker=messages.StringField(1),
+)
+
+WISHLIST_SESSION_CITY_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    city=messages.StringField(1),
 )
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -618,7 +629,7 @@ class ConferenceApi(remote.Service):
         """Return sessions given by specified speaker across all conferences."""
 
         q = Session.query()
-        q = q.filter(Session.speakers.IN([request.speaker]))
+        q = q.filter(Session.speaker == request.speaker)
 
         return SessionForms(
             items=[self._copySessionToForm(session) for session in q])
@@ -670,16 +681,21 @@ class ConferenceApi(remote.Service):
         data = {field.name: getattr(request, field.name) for field in
                 request.all_fields()}
         del data['websafeConferenceKey']
+        del data['websafeKey']
 
         # add default values for those missing
         for df in SESSION_DEFAULTS:
             if data[df] in (None, []):
                 data[df] = SESSION_DEFAULTS[df]
-                if df == 'type':
-                    setattr(request, df,
-                            getattr(SessionType, SESSION_DEFAULTS[df]))
-                else:
-                    setattr(request, df, SESSION_DEFAULTS[df])
+                setattr(request, df, SESSION_DEFAULTS[df])
+
+        # convert startTime from string to Time object
+        if data['startTime']:
+            data['startTime'] = datetime.strptime(data['startTime'], '%H:%M:%S').time()
+
+        # convert session type from enum value to string
+        if data['type']:
+            data['type'] = str(data['type'])
 
         s_id = Session.allocate_ids(size=1, parent=conf.key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf.key)
@@ -688,11 +704,10 @@ class ConferenceApi(remote.Service):
 
         # create Conference, send email to organizer confirming
         # creation of Conference & return (modified) ConferenceForm
-        session = Session(**data).put()
-
+        Session(**data).put()
         conf.sessionKeys.append(s_key.urlsafe())
         conf.put()
-        return self._copySessionToForm(session)
+        return self._copySessionToForm(s_key.get())
 
     def _copySessionToForm(self, session):
         """Copy relevant fields from Conference to ConferenceForm."""
@@ -703,6 +718,9 @@ class ConferenceApi(remote.Service):
                 if field.name == 'type':
                     setattr(sf, field.name,
                             getattr(SessionType, getattr(session, field.name)))
+                elif field.name == 'startTime':
+                    setattr(sf, field.name,
+                            str(getattr(session, field.name)))
                 else:
                     setattr(sf, field.name, getattr(session, field.name))
             elif field.name == "websafeKey":
@@ -746,6 +764,40 @@ class ConferenceApi(remote.Service):
     def getSessionsInWishlist(self, request):
         """Get all sessions in the user's wishlist."""
 
+        sessions = self._getAllSessionsInWishlist()
+
+        # return SessionForm objects for the current user
+        return SessionForms(
+                items=[self._copySessionToForm(session) for session in
+                       sessions])
+
+    @endpoints.method(WISHLIST_SESSION_SPEAKER_GET_REQUEST, SessionForms,
+                      path='wishlistBySpeaker',
+                      http_method='GET', name='getWishlistSessionsBySpeaker')
+    def getWishlistSessionsBySpeaker(self, request):
+        """Get sessions in the user's wishlist by a given speaker"""
+
+        sessions = self._getAllSessionsInWishlist()
+
+        # return SessionForm objects for the current user by the given speaker
+        return SessionForms(
+                items=[self._copySessionToForm(session) for session in
+                       sessions if session.speaker == request.speaker])
+
+    @endpoints.method(WISHLIST_SESSION_CITY_GET_REQUEST, SessionForms,
+                      path='wishlistByCity',
+                      http_method='GET', name='getWishlistSessionsByCity')
+    def getWishlistSessionsByCity(self, request):
+        """Get sessions in the user's wishlist in a given city"""
+
+        sessions = self._getAllSessionsInWishlist()
+
+        # return SessionForm objects for the current user in the given city
+        return SessionForms(
+                items=[self._copySessionToForm(session) for session in
+                       sessions if session.key.parent().get().city == request.city])
+
+    def _getAllSessionsInWishlist(self):
         # validate user
         user = endpoints.get_current_user()
         if not user:
@@ -754,11 +806,20 @@ class ConferenceApi(remote.Service):
         prof = ndb.Key(Profile, user_id).get()
 
         session_keys = [ndb.Key(urlsafe=wssk) for wssk in prof.wishlistSessionKeys]
-        sessions = ndb.get_multi(session_keys)
+        return ndb.get_multi(session_keys)
 
-        # return SessionForm objects for the current user
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='session',
+                      http_method='GET', name='querySessions')
+    def querySessions(self, request):
+        """Get all non-workshop sessions before 7 pm"""
+
+        q = Session.query()
+        q = q.order(Session.startTime)
+        q = q.filter(Session.startTime < time(19, 00, 00))
+        # return SessionForm objects for the current user in the given city
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
-                       sessions])
+                       q if session.type != str(SessionType.WORKSHOP)])
 
 api = endpoints.api_server([ConferenceApi]) # register API

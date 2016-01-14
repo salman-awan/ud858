@@ -114,21 +114,19 @@ class ConferenceQueryForms(messages.Message):
 class Session(ndb.Model):
     """Session -- Session object"""
     name            = ndb.StringProperty(required=True)
-    speakers        = ndb.StringProperty(repeated=True) # TODO: make this separate entities?
+    speaker         = ndb.StringProperty()
     date            = ndb.DateProperty()
-    startTime       = ndb.DateTimeProperty()
+    startTime       = ndb.TimeProperty()
     duration        = ndb.IntegerProperty() # duration in minutes
     type            = ndb.StringProperty()
-    location        = ndb.StringProperty()
 
 class SessionForm(messages.Message):
     """SessionForm -- Session outbound form message"""
     name            = messages.StringField(1)
-    speakers        = messages.StringField(2, repeated=True)
-    startTime       = messages.StringField(3)  #DateTimeField()
+    speaker         = messages.StringField(2)
+    startTime       = messages.StringField(3)
     duration        = messages.IntegerField(4)
     type            = messages.EnumField('SessionType', 5)
-    location        = messages.StringField(6)
     websafeKey      = messages.StringField(7)
 
 class SessionForms(messages.Message):
