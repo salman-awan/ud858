@@ -18,14 +18,20 @@ You will need to install Python 2.7.x and Google App Engine (1.x).
 
 TASK 1: ADD SESSIONS TO CONFERENCE
 ----------------------------------
-Session model object contains properties for session name, highlights, speakers, duration, type of session, date, and start time. Speakers is a list of strings.
+Session model object contains properties for session name, speaker, duration, type of session, date, and start time.
+Speaker is stored as string.
+Session has Conference as parent.
+
+
+TASK 2: SESSION WISHLIST
+------------------------
+The endpoint methods to add a session to the current user's wishlist and then get a list of all sessions in the user's wishlist were implemented as required.
 
 
 TASK 3: ADDITIONAL QUERIES
 --------------------------
-1. Get Wishlist sessions by speaker
+1. Get Wishlist sessions by speaker: 
 2. Get Wishlist sessions by city
-
 
 
 TASK 3: QUERY PROBLEM
