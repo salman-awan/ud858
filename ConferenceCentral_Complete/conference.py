@@ -631,9 +631,11 @@ class ConferenceApi(remote.Service):
     def getSessionsBySpeaker(self, request):
         """Return sessions given by specified speaker across all conferences."""  # noqa
 
+        # query sessions by specified speaker
         q = Session.query()
         q = q.filter(Session.speaker == request.speaker)
 
+        # return SessionForm objects by specified speaker
         return SessionForms(
             items=[self._copySessionToForm(session) for session in q])
 
@@ -645,6 +647,8 @@ class ConferenceApi(remote.Service):
         return self._createSessionObject(request)
 
     def _getSessionsForConference(self, websafeConferenceKey):
+        """Return all sessions for the requested conference."""  # noqa
+
         # get Conference object from request; bail if not found
         conf = None
         try:
@@ -655,13 +659,14 @@ class ConferenceApi(remote.Service):
                     'No conference found with key: %s' %
                     websafeConferenceKey)
 
+        # return a list of session keys in this conference
         session_keys = [ndb.Key(urlsafe=wssk) for wssk in conf.sessionKeys]
         return ndb.get_multi(session_keys)
 
     def _createSessionObject(self, request):
         """Create or update Session object, returning SessionForm/request."""
 
-        # preload necessary data items
+        # validate current user
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -674,9 +679,11 @@ class ConferenceApi(remote.Service):
                 'No conference found with key: %s' %
                 request.websafeConferenceKey)
 
+        # validate that current user is the organizer
         if conf.organizerUserId != user_id:
             raise endpoints.UnauthorizedException('Authorization required')
 
+        # validate request data
         if not request.name:
             raise endpoints.BadRequestException("Session 'name' field required")  # noqa
 
@@ -691,7 +698,7 @@ class ConferenceApi(remote.Service):
             if data[df] in (None, []):
                 data[df] = SESSION_DEFAULTS[df]
 
-        # convert startTime from string to Time object
+        # convert session startTime from string to Time object
         if data['startTime']:
             data['startTime'] = datetime.strptime(data['startTime'],
                                                   '%H:%M:%S').time()
@@ -700,17 +707,18 @@ class ConferenceApi(remote.Service):
         if data['type']:
             data['type'] = str(data['type'])
 
+        # create a session key for new session
         s_id = Session.allocate_ids(size=1, parent=conf.key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf.key)
 
         data['key'] = s_key
 
-        # create Conference, send email to organizer confirming
-        # creation of Conference & return (modified) ConferenceForm
+        # create Session & return SessionForm
         Session(**data).put()
         conf.sessionKeys.append(s_key.urlsafe())
         conf.put()
-        # featured speaker task
+
+        # queue featured speaker task
         taskqueue.add(params={'speaker': request.speaker,
                               'websafeConferenceKey':
                               request.websafeConferenceKey},
@@ -723,7 +731,8 @@ class ConferenceApi(remote.Service):
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(session, field.name):
-                # convert Date to date string; just copy others
+                # convert startTime to string and type enum to string
+                # just copy others
                 if field.name == 'type':
                     setattr(sf, field.name,
                             getattr(SessionType, getattr(session, field.name)))
@@ -743,7 +752,7 @@ class ConferenceApi(remote.Service):
     def addSessionToWishlist(self, request):
         """Add specified session to the user's wishlist."""
 
-        # validate user
+        # validate current user
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
@@ -762,6 +771,7 @@ class ConferenceApi(remote.Service):
                 'Wishlist already contains session with key: %s' %
                 request.websafeSessionKey)
 
+        # put session key into user wishlist
         prof.wishlistSessionKeys.append(request.websafeSessionKey)
         prof.put()
         return message_types.VoidMessage()
@@ -774,7 +784,7 @@ class ConferenceApi(remote.Service):
 
         sessions = self._getAllSessionsInWishlist()
 
-        # return SessionForm objects for the current user
+        # return SessionForm objects in the current user's wishlist
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
                        sessions])
@@ -787,7 +797,8 @@ class ConferenceApi(remote.Service):
 
         sessions = self._getAllSessionsInWishlist()
 
-        # return SessionForm objects for the current user by the given speaker
+        # return SessionForm objects in the current user's wishlist
+        # filtered by the given speaker
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
                        sessions if session.speaker == request.speaker])
@@ -800,13 +811,16 @@ class ConferenceApi(remote.Service):
 
         sessions = self._getAllSessionsInWishlist()
 
-        # return SessionForm objects for the current user in the given city
+        # return SessionForm objects in the current user's wishlist
+        # filtered by the given city
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
                        sessions if session.key.parent().get().city ==
                        request.city])
 
     def _getAllSessionsInWishlist(self):
+        """Return all sessions in the user's wishlist."""
+
         # validate user
         user = endpoints.get_current_user()
         if not user:
@@ -833,7 +847,9 @@ class ConferenceApi(remote.Service):
                        q if session.type != str(SessionType.WORKSHOP)])
 
     @staticmethod
-    def _updateFeatureSpeaker(speaker, websafeConferenceKey):
+    def _updateFeaturedSpeaker(speaker, websafeConferenceKey):
+        """Update the featured speaker if the given speaker is speaking
+        at more than one sessions in the given conference"""
         q = Session.query(ancestor=ndb.Key(urlsafe=websafeConferenceKey))
         count = q.filter(Session.speaker == speaker).count()
         if (count > 1):

@@ -10,12 +10,11 @@ created by wesc on 2014 may 24
 
 """
 
-__author__ = 'wesc+api@google.com (Wesley Chun)'
-
 import webapp2
 from google.appengine.api import app_identity
 from google.appengine.api import mail
 from conference import ConferenceApi
+
 
 class SetAnnouncementHandler(webapp2.RequestHandler):
     def get(self):
@@ -41,8 +40,8 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
 class UpdateFeaturedSpeakerHandler(webapp2.RequestHandler):
     def post(self):
         """Set Featured Speaker in Memcache."""
-        ConferenceApi._updateFeatureSpeaker(self.request.get('speaker'),
-                                            self.request.get('websafeConferenceKey'))
+        ConferenceApi._updateFeaturedSpeaker(self.request.get('speaker'),
+                                             self.request.get('websafeConferenceKey'))  # noqa
         self.response.set_status(204)
 
 
