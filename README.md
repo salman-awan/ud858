@@ -8,7 +8,7 @@ Salman Awan
 
 INTRODUCTION
 ------------
-This repository contains the submission for Project 4 of the Udacity Full Stack Devleoper Nanodegree. This project contains code for a conference organization app which uses the Google App Engine (GAE).
+This repository contains the submission for Project 4 of the Udacity Full Stack Devleoper Nanodegree, which is a conference organization app which uses the Google App Engine (GAE).
 
 
 REQUIREMENTS
@@ -18,10 +18,11 @@ You will need to install Python 2.7.x and Google App Engine (1.x).
 
 TASK 1: ADD SESSIONS TO CONFERENCE
 ----------------------------------
-Session model object contains properties for session name, speaker, duration, type of session, date, and start time.
-Speaker is stored as string.
-Session has Conference as parent.
+For this task, two new classes were added named Session (NDB model) and SessionForm (ProtoRPC message).
 
+The Session class contains properties for session name, speaker, duration, type of session, date, and start time. The speaker property is implemented as a string property containing the name of the speaker. Moreover, the Session objects all have the respective Conference objects set as their parent in the datastore.
+
+The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
 
 TASK 2: SESSION WISHLIST
 ------------------------
@@ -30,8 +31,9 @@ The endpoint methods to add a session to the current user's wishlist and then ge
 
 TASK 3: ADDITIONAL QUERIES
 --------------------------
-1. Get Wishlist sessions by speaker: 
-2. Get Wishlist sessions by city
+1. Get Wishlist sessions by speaker: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified speaker. This will be useful for first querying the featured speaker (task 4) and then running this query to get all sessions by the featured speaker.
+
+2. Get Wishlist sessions by city: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified city. This will allow the user to quickly see all the sessions they want to attend in a particular city across all conferences.
 
 
 TASK 3: QUERY PROBLEM
@@ -43,21 +45,20 @@ The most intuitive way to workaround this issue is to apply only one inequality 
 Another possible way to do this might be to change the NOT EQUAL TO filter for session type to a IN filter containing all session type values which are non-workshop. That would do it in one Datastore query.
 
 
+TASK 4: FEATURED SPEAKER
+---------------------
+For this task, the getFeaturedSpeaker endpoint method was added to get the current featured speaker. The featured speaker is stored in the memcache whenever a new session is created and the speaker for that session has more than one sessions. Previous featured speakers are overwritten. Moreover, the memcache entry is added via a background task implemented using the task queue feature in GAE.
+
+
 RUNNING THE APPLICATION
 -----------------------
-In folder /vagrant/catalog, run the following command:
+To start the app on localhost, run the Google App Engine Launcher, then add the GAE project named 'salcon-1145' in the folder: <ud858>\ConferenceCentral_Complete
 
-python application.py
-
-This will start the website which can be accessed with this URL: http://localhost:5000
+This project has also been deployed to the GAE cloud: https://salcon-1145.appspot.com/
 
 
 USAGE
 -----
-You can use the links in the main catalog page to view the categories and items within those categories.
+Before fully testing the project, you must login to the app using your Google account, then go to My Profile page, and update your Tee shirt size (click Update profile button after that). This will ensure that your profile instance gets saved in the NDB.
 
-Only logged in users can add items, and then edit or delete the items they have added.
-
-This project uses Google sign in for authentication. After clicking the Login link, you will need to use your Google account to log in and allow access for this application.
-
-Once logged in, the relevant web pages will allow you to add new items and later edit or delete those items.
+After that, you can either use the web UI to use the features, or go to the API explorer to test the newly added endpoints: https://apis-explorer.appspot.com/apis-explorer/?base=https://salcon-1145.appspot.com/_ah/api#p/conference/v1/
