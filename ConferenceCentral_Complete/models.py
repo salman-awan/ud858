@@ -63,7 +63,7 @@ class Conference(ndb.Model):
     topics = ndb.StringProperty(repeated=True)
     city = ndb.StringProperty()
     startDate = ndb.DateProperty()
-    month = ndb.IntegerProperty()  # TODO: do we need for indexing like Java?
+    month = ndb.IntegerProperty()
     endDate = ndb.DateProperty()
     maxAttendees = ndb.IntegerProperty()
     seatsAvailable = ndb.IntegerProperty()
@@ -125,6 +125,7 @@ class ConferenceQueryForms(messages.Message):
 class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
+    highlights = ndb.StringProperty()
     speaker = ndb.StringProperty()
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
@@ -135,11 +136,13 @@ class Session(ndb.Model):
 class SessionForm(messages.Message):
     """SessionForm -- Session outbound form message"""
     name = messages.StringField(1)
-    speaker = messages.StringField(2)
-    startTime = messages.StringField(3)
-    duration = messages.IntegerField(4)
-    type = messages.EnumField('SessionType', 5)
-    websafeKey = messages.StringField(7)
+    highlights = ndb.StringField(2)  # TODO: handle defaults, etc.
+    speaker = messages.StringField(3)
+    date = messages.StringField(4)  # TODO: handle conversion
+    startTime = messages.StringField(5)
+    duration = messages.IntegerField(6)
+    type = messages.EnumField('SessionType', 7)
+    websafeKey = messages.StringField(8)
 
 
 class SessionForms(messages.Message):

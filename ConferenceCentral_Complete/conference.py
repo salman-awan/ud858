@@ -719,12 +719,11 @@ class ConferenceApi(remote.Service):
         conf.put()
 
         # queue featured speaker task
-        taskqueue.add(params={'speaker': request.speaker,
-                              'websafeConferenceKey':
-                              request.websafeConferenceKey},
+        session = s_key.get()
+        taskqueue.add(params={'session': session},
                       url='/tasks/update_featured_speaker')
 
-        return self._copySessionToForm(s_key.get())
+        return self._copySessionToForm(session)
 
     def _copySessionToForm(self, session):
         """Copy relevant fields from Conference to ConferenceForm."""
@@ -746,7 +745,7 @@ class ConferenceApi(remote.Service):
         sf.check_initialized()
         return sf
 
-    @endpoints.method(WISHLIST_POST_REQUEST, message_types.VoidMessage,
+    @endpoints.method(WISHLIST_POST_REQUEST, message_types.BooleanMessage,
                       path='wishlist/{websafeSessionKey}',
                       http_method='POST', name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
@@ -766,6 +765,7 @@ class ConferenceApi(remote.Service):
                 'No session found with key: %s' %
                 request.websafeSessionKey)
 
+        # check if session exists in user's wishlist
         if request.websafeSessionKey in prof.wishlistSessionKeys:
             raise endpoints.ConflictException(
                 'Wishlist already contains session with key: %s' %
@@ -774,7 +774,7 @@ class ConferenceApi(remote.Service):
         # put session key into user wishlist
         prof.wishlistSessionKeys.append(request.websafeSessionKey)
         prof.put()
-        return message_types.VoidMessage()
+        return message_types.BooleanMessage(data=True)
 
     @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='wishlist',
@@ -788,6 +788,36 @@ class ConferenceApi(remote.Service):
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
                        sessions])
+
+    @endpoints.method(WISHLIST_POST_REQUEST, message_types.BooleanMessage,
+                      path='wishlist',
+                      http_method='DELETE', name='deleteSessionInWishlist')
+    def deleteSessionInWishlist(self, request):
+        """Delete the specified session from the user's wishlist."""
+
+        # validate current user
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        user_id = getUserId(user)
+        prof = ndb.Key(Profile, user_id).get()
+
+        # validate session key
+        session = ndb.Key(urlsafe=request.websafeSessionKey).get()
+        if not session:
+            raise endpoints.NotFoundException(
+                'No session found with key: %s' %
+                request.websafeSessionKey)
+
+        # check if session exists in user's wishlist
+        if request.websafeSessionKey not in prof.wishlistSessionKeys:
+            raise endpoints.NotFoundException(
+                "User's wishlist does not contain session with key: %s",
+                request.websafeSessionKey)
+
+        prof.wishlistSessionKeys.remove(request.websafeSessionKey)
+        prof.put()
+        return message_types.BooleanMessage(data=True)
 
     @endpoints.method(WISHLIST_SESSION_SPEAKER_GET_REQUEST, SessionForms,
                       path='wishlistBySpeaker',
@@ -841,25 +871,28 @@ class ConferenceApi(remote.Service):
         q = Session.query()
         q = q.order(Session.startTime)
         q = q.filter(Session.startTime < time(19, 00, 00))
-        # return SessionForm objects for the current user in the given city
+
+        # return SessionForm objects for all non-workshop sessions before 7 pm
         return SessionForms(
                 items=[self._copySessionToForm(session) for session in
                        q if session.type != str(SessionType.WORKSHOP)])
 
     @staticmethod
-    def _updateFeaturedSpeaker(speaker, websafeConferenceKey):
+    def _updateFeaturedSpeaker(session):
         """Update the featured speaker if the given speaker is speaking
-        at more than one sessions in the given conference"""
-        q = Session.query(ancestor=ndb.Key(urlsafe=websafeConferenceKey))
-        count = q.filter(Session.speaker == speaker).count()
+        at more than one sessions in the same conference"""
+        q = Session.query(ancestor=ndb.Key(urlsafe=session.parent().urlsafe()))
+        count = q.filter(Session.speaker == session.speaker).count()
         if (count > 1):
-            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, speaker)
+            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, session.speaker)
 
     @endpoints.method(message_types.VoidMessage, StringMessage,
                       path='featuredSpeaker',
                       http_method='GET', name='getFeaturedSpeaker')
     def getFeaturedSpeaker(self, request):
         """Get the featured speaker"""
-        return StringMessage(data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or "")
+        # TODO: expectation here is for a list of session names to be provided
+        # in addition to the speaker name
+        return StringMessage(data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or "")  # noqa
 
 api = endpoints.api_server([ConferenceApi])  # register API

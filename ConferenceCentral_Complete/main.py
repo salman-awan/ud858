@@ -40,8 +40,7 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
 class UpdateFeaturedSpeakerHandler(webapp2.RequestHandler):
     def post(self):
         """Set Featured Speaker in Memcache."""
-        ConferenceApi._updateFeaturedSpeaker(self.request.get('speaker'),
-                                             self.request.get('websafeConferenceKey'))  # noqa
+        ConferenceApi._updateFeaturedSpeaker(self.request.get('session'))
         self.response.set_status(204)
 
 

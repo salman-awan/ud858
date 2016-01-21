@@ -24,6 +24,11 @@ The Session class contains properties for session name, speaker, duration, type 
 
 The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
 
+TODO:
+I recommend you explain how the different entities in your project interact and work together (including how data passes from API to users). Explain why you made the design choices that you did.
+Explaining why you chose each variable type in your Session model is a good start.
+Provide an explanation within your README on your implementation decision to keep a list of sessions as a property on Conference.
+
 TASK 2: SESSION WISHLIST
 ------------------------
 The endpoint methods to add a session to the current user's wishlist and then get a list of all sessions in the user's wishlist were implemented as required.
