@@ -20,9 +20,17 @@ TASK 1: ADD SESSIONS TO CONFERENCE
 ----------------------------------
 For this task, two new classes were added named Session (NDB model) and SessionForm (ProtoRPC message).
 
-The Session class contains properties for session name, speaker, duration, type of session, date, and start time. The speaker property is implemented as a string property containing the name of the speaker. Moreover, the Session objects all have the respective Conference objects set as their parent in the datastore.
+The Session class contains properties for session name (string property), highlights (string property), speaker (string property), duration (integer property), type of session (string property), date (date property), and start time (time property). Following are some notable design decisions behind this:
 
-The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
+- The speaker property is implemented as a string property containing the name of the speaker. Simpler queries.
+- The highlights property is a string but could be comma separated.
+- duration is duration in minutes
+- The type property for the Session class is represented as a SessionType enum in the corresponding SessionForm ProtoRPC message class. Why?
+- date property uses ndb date type
+- start time property uses ndb time property to represent. It is converted to/from 24 hr format when serializing it to SessionForm object
+- The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
+- The Session objects all have the respective Conference objects set as their parent in the datastore.
+- The Conference class was modified to add a list of all child sessions. This makes querying for sessions within a conference much easier.
 
 TODO:
 I recommend you explain how the different entities in your project interact and work together (including how data passes from API to users). Explain why you made the design choices that you did.
