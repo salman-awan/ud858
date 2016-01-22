@@ -3,7 +3,7 @@ P4: Conference Organization App
 
 AUTHOR
 ------
-Salman Awan
+Salman Awan (salman.awan@gmail.com)
 
 
 INTRODUCTION
@@ -22,31 +22,30 @@ For this task, two new classes were added named Session (NDB model) and SessionF
 
 The Session class contains properties for session name (string property), highlights (string property), speaker (string property), duration (integer property), type of session (string property), date (date property), and start time (time property). Following are some notable design decisions behind this:
 
-- The speaker property is implemented as a string property containing the name of the speaker. Simpler queries.
-- The highlights property is a string but could be comma separated.
-- duration is duration in minutes
-- The type property for the Session class is represented as a SessionType enum in the corresponding SessionForm ProtoRPC message class. Why?
-- date property uses ndb date type
-- start time property uses ndb time property to represent. It is converted to/from 24 hr format when serializing it to SessionForm object
+- The 'speaker' property is implemented as a string property containing the name of the speaker.
+- The 'highlights' property is a string.
+- The 'duration' is the duration of the session in minutes.
+- The 'type' property is a string in the Session class but is represented as a SessionType enum in the corresponding SessionForm ProtoRPC message class. This was done to restrict the session types to known types.
+- The 'date' property uses the Datastore Date type to store the date of the session.
+- The 'startTime' property uses the Datastore Time type to represent the start time of the session. It is converted to/from 24 hr format when serializing it to SessionForm object
 - The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
 - The Session objects all have the respective Conference objects set as their parent in the datastore.
 - The Conference class was modified to add a list of all child sessions. This makes querying for sessions within a conference much easier.
 
 TODO:
 I recommend you explain how the different entities in your project interact and work together (including how data passes from API to users). Explain why you made the design choices that you did.
-Explaining why you chose each variable type in your Session model is a good start.
-Provide an explanation within your README on your implementation decision to keep a list of sessions as a property on Conference.
+
 
 TASK 2: SESSION WISHLIST
 ------------------------
-The endpoint methods to add a session to the current user's wishlist and then get a list of all sessions in the user's wishlist were implemented as required.
+The endpoint methods to add a session to the current user's wishlist, get a list of all sessions in the user's wishlist, and delete a session from the user's wishlist were implemented as required. The user's wishlist is stored in the existing Profile model class as a property named 'wishlistSessionKeys' which contains a list of session keys (strings) representing the sessions in the user's wishlist.
 
 
 TASK 3: ADDITIONAL QUERIES
 --------------------------
-1. Get Wishlist sessions by speaker: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified speaker. This will be useful for first querying the featured speaker (task 4) and then running this query to get all sessions by the featured speaker.
+Query # 1. Get Wishlist sessions by speaker: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified speaker. This will be useful for first querying the featured speaker (task 4) and then running this query to get all sessions by the featured speaker. It was implemented by filtering the sessions in the wishlist by the specified speaker.
 
-2. Get Wishlist sessions by city: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified city. This will allow the user to quickly see all the sessions they want to attend in a particular city across all conferences.
+Query # 2. Get Wishlist sessions by city: Added a new endpoint method to get the sessions in the current user's wishlist filtered by the specified city. This will allow the user to quickly see all the sessions they want to attend in a particular city across all conferences. It was implemented by filtering the sessions in the wishlist by the specified city which was obtained via the parent conference object for the sessions.
 
 
 TASK 3: QUERY PROBLEM

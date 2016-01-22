@@ -10,6 +10,7 @@ created by wesc on 2014 apr 21
 
 """
 
+import sys
 from datetime import datetime
 from datetime import time
 
@@ -36,6 +37,7 @@ from models import TeeShirtSize
 from models import Session, SessionType
 from models import SessionForm
 from models import SessionForms
+from models import FeaturedSpeakerMessage
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -64,7 +66,8 @@ SESSION_DEFAULTS = {
     'type': str(SessionType.WORKSHOP),
     'speaker': 'John Doe',
     'duration': 0,
-    'startTime': '00:00:00'
+    'startTime': '00:00:00',
+    'date': '2016-01-01'
 }
 
 OPERATORS = {
@@ -703,6 +706,11 @@ class ConferenceApi(remote.Service):
             data['startTime'] = datetime.strptime(data['startTime'],
                                                   '%H:%M:%S').time()
 
+        # convert session date from string to Date object
+        if data['date']:
+            data['date'] = datetime.strptime(data['date'],
+                                             '%Y-%m-%d').date()
+
         # convert session type from enum value to string
         if data['type']:
             data['type'] = str(data['type'])
@@ -719,23 +727,22 @@ class ConferenceApi(remote.Service):
         conf.put()
 
         # queue featured speaker task
-        session = s_key.get()
-        taskqueue.add(params={'session': session},
+        taskqueue.add(params={'session_key': s_key.urlsafe()},
                       url='/tasks/update_featured_speaker')
 
-        return self._copySessionToForm(session)
+        return self._copySessionToForm(s_key.get())
 
     def _copySessionToForm(self, session):
         """Copy relevant fields from Conference to ConferenceForm."""
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(session, field.name):
-                # convert startTime to string and type enum to string
+                # convert startTime, date and type to string
                 # just copy others
                 if field.name == 'type':
                     setattr(sf, field.name,
                             getattr(SessionType, getattr(session, field.name)))
-                elif field.name == 'startTime':
+                elif field.name == 'startTime' or field.name == 'date':
                     setattr(sf, field.name,
                             str(getattr(session, field.name)))
                 else:
@@ -745,7 +752,7 @@ class ConferenceApi(remote.Service):
         sf.check_initialized()
         return sf
 
-    @endpoints.method(WISHLIST_POST_REQUEST, message_types.BooleanMessage,
+    @endpoints.method(WISHLIST_POST_REQUEST, BooleanMessage,
                       path='wishlist/{websafeSessionKey}',
                       http_method='POST', name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
@@ -774,7 +781,7 @@ class ConferenceApi(remote.Service):
         # put session key into user wishlist
         prof.wishlistSessionKeys.append(request.websafeSessionKey)
         prof.put()
-        return message_types.BooleanMessage(data=True)
+        return BooleanMessage(data=True)
 
     @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='wishlist',
@@ -789,7 +796,7 @@ class ConferenceApi(remote.Service):
                 items=[self._copySessionToForm(session) for session in
                        sessions])
 
-    @endpoints.method(WISHLIST_POST_REQUEST, message_types.BooleanMessage,
+    @endpoints.method(WISHLIST_POST_REQUEST, BooleanMessage,
                       path='wishlist',
                       http_method='DELETE', name='deleteSessionInWishlist')
     def deleteSessionInWishlist(self, request):
@@ -817,7 +824,7 @@ class ConferenceApi(remote.Service):
 
         prof.wishlistSessionKeys.remove(request.websafeSessionKey)
         prof.put()
-        return message_types.BooleanMessage(data=True)
+        return BooleanMessage(data=True)
 
     @endpoints.method(WISHLIST_SESSION_SPEAKER_GET_REQUEST, SessionForms,
                       path='wishlistBySpeaker',
@@ -878,21 +885,24 @@ class ConferenceApi(remote.Service):
                        q if session.type != str(SessionType.WORKSHOP)])
 
     @staticmethod
-    def _updateFeaturedSpeaker(session):
+    def _updateFeaturedSpeaker(wssk):
         """Update the featured speaker if the given speaker is speaking
         at more than one sessions in the same conference"""
-        q = Session.query(ancestor=ndb.Key(urlsafe=session.parent().urlsafe()))
-        count = q.filter(Session.speaker == session.speaker).count()
-        if (count > 1):
-            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, session.speaker)
+        s_key = ndb.Key(urlsafe=wssk)
+        q = Session.query(ancestor=ndb.Key(urlsafe=s_key.parent().urlsafe()))
+        session = s_key.get()
+        q = q.filter(Session.speaker == session.speaker)
+        if (q.count > 1):
+            fs = FeaturedSpeakerMessage()
+            fs.speaker = session.speaker
+            fs.sessions = [session.name for session in q]
+            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, fs)
 
-    @endpoints.method(message_types.VoidMessage, StringMessage,
+    @endpoints.method(message_types.VoidMessage, FeaturedSpeakerMessage,
                       path='featuredSpeaker',
                       http_method='GET', name='getFeaturedSpeaker')
     def getFeaturedSpeaker(self, request):
-        """Get the featured speaker"""
-        # TODO: expectation here is for a list of session names to be provided
-        # in addition to the speaker name
-        return StringMessage(data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or "")  # noqa
+        """Get the featured speaker and a list of session names by that speaker"""  # noqa
+        return memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or FeaturedSpeakerMessage()  # noqa
 
 api = endpoints.api_server([ConferenceApi])  # register API

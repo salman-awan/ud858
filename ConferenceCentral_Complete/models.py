@@ -136,9 +136,9 @@ class Session(ndb.Model):
 class SessionForm(messages.Message):
     """SessionForm -- Session outbound form message"""
     name = messages.StringField(1)
-    highlights = ndb.StringField(2)  # TODO: handle defaults, etc.
+    highlights = messages.StringField(2)
     speaker = messages.StringField(3)
-    date = messages.StringField(4)  # TODO: handle conversion
+    date = messages.StringField(4)
     startTime = messages.StringField(5)
     duration = messages.IntegerField(6)
     type = messages.EnumField('SessionType', 7)
@@ -155,3 +155,9 @@ class SessionType(messages.Enum):
     WORKSHOP = 1
     LECTURE = 2
     FORUM = 3
+
+
+class FeaturedSpeakerMessage(messages.Message):
+    """FeaturedSpeakerMessage-- outbound featured speaker message"""
+    speaker = messages.StringField(1)
+    sessions = messages.StringField(2, repeated=True)
