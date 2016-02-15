@@ -20,7 +20,7 @@ TASK 1: ADD SESSIONS TO CONFERENCE
 ----------------------------------
 For this task, two new classes were added named Session (NDB model) and SessionForm (ProtoRPC message).
 
-The Session class contains properties for session name (string property), highlights (string property), speaker (string property), duration (integer property), type of session (string property), date (date property), and start time (time property). Following are some notable design decisions behind this:
+The Session class contains properties for session name (string property), highlights (string property), speaker (string property), duration (integer property), type of session (string property), date (date property), and start time (time property). Following are some notable design decisions behind the Session class design:
 
 - The 'speaker' property is implemented as a string property containing the name of the speaker.
 - The 'highlights' property is a string.
@@ -28,12 +28,12 @@ The Session class contains properties for session name (string property), highli
 - The 'type' property is a string in the Session class but is represented as a SessionType enum in the corresponding SessionForm ProtoRPC message class. This was done to restrict the session types to known types.
 - The 'date' property uses the Datastore Date type to store the date of the session.
 - The 'startTime' property uses the Datastore Time type to represent the start time of the session. It is converted to/from 24 hr format when serializing it to SessionForm object
-- The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
-- The Session objects all have the respective Conference objects set as their parent in the datastore.
-- The Conference class was modified to add a list of all child sessions. This makes querying for sessions within a conference much easier.
 
-TODO:
-I recommend you explain how the different entities in your project interact and work together (including how data passes from API to users). Explain why you made the design choices that you did.
+Following are notable design decisions regarding how the different entities interact and work together:
+
+- The SessionForm class contains corresponding properties for all Session class properties. It also includes a 'websafeKey' property which contains the web-safe version of the datastore key for that session object.
+- The Session objects all have the respective Conference objects set as their parent in the datastore. This makes it easy to get the parent Conference object when we only have the Session object available.
+- The Conference class was modified to add a list of all child sessions. This makes querying for sessions within a conference much easier.
 
 
 TASK 2: SESSION WISHLIST
