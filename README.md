@@ -64,7 +64,7 @@ For this task, the getFeaturedSpeaker endpoint method was added to get the curre
 
 RUNNING THE APPLICATION
 -----------------------
-To start the app on localhost, run the Google App Engine Launcher, then add the GAE project named 'salcon-1145' in the folder: <ud858>\ConferenceCentral_Complete
+To start the app on localhost, run the Google App Engine Launcher, then add the GAE project named 'salcon-1145' in the folder: <ud858>\ConferenceCentral_Complete. After starting the project, it will get hosted at: http://localhost:<port>/ where the default value for <port> is typically 8080.
 
 This project has also been deployed to the GAE cloud: https://salcon-1145.appspot.com/
 
